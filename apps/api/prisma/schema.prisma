@@ -7,96 +7,44 @@ datasource db {
   provider = "postgresql"
 }
 
-model Category {
-  id       Int       @id @default(autoincrement())
-  name     String    @unique
-  products Product[]
+enum Store {
+  SHOPEE
+  MERCADO_LIVRE
+  AMAZON
 }
 
-model Store {
-  id              Int              @id @default(autoincrement())
-  name            String
-  description     String?
-  website         String?
-  logoUrl         String?
-  active          Boolean          @default(true)
-  promotions      Promotion[]
-  scrapingSources ScrapingSource[]
-  createdAt       DateTime         @default(now())
+enum Platform {
+  TELEGRAM
+  WHATSAPP
 }
 
 model Product {
-  id          Int         @id @default(autoincrement())
-  name        String
-  description String?
-  brand       String?
-  categoryId  Int
-  category    Category    @relation(fields: [categoryId], references: [id])
-  imageUrl    String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  promotions  Promotion[]
+  id               String   @id @default(uuid())
+  externalId       String
+  store            Store
+  title            String
+  originalPrice    Decimal  @db.Decimal(10, 2)
+  promotionalPrice Decimal  @db.Decimal(10, 2)
+  discountPercent  Decimal  @db.Decimal(5, 2)
+  imageUrl         String?
+  affiliateUrl     String
+  coupon           String?
+  createdAt        DateTime @default(now())
+
+  sentOffers SentOffer[]
+
+  @@unique([store, externalId])
+  @@map("products")
 }
 
-model Promotion {
-  id                 Int            @id @default(autoincrement())
-  productId          Int
-  product            Product        @relation(fields: [productId], references: [id])
-  storeId            Int
-  store              Store          @relation(fields: [storeId], references: [id])
-  oldPrice           Decimal?
-  newPrice           Decimal
-  discountPercentage Decimal?
-  url                String         @unique
-  startDate          DateTime?
-  endDate            DateTime?
-  active             Boolean        @default(true)
-  notifications      Notification[]
-  createdAt          DateTime       @default(now())
-}
+model SentOffer {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  platform  Platform
+  channelId String
+  sentAt    DateTime @default(now())
 
-model Notification {
-  id          Int                @id @default(autoincrement())
-  promotionId Int
-  channelId   Int
-  status      NotificationStatus @default(PENDING)
-  sentAt      DateTime?
-  error       String?
-  promotion   Promotion          @relation(fields: [promotionId], references: [id], onDelete: Cascade)
-  channel     Channel            @relation(fields: [channelId], references: [id])
-  createdAt   DateTime           @default(now())
-
-  @@unique([promotionId, channelId])
-}
-
-enum ChannelType {
-  TELEGRAM_GROUP
-  WHATSAPP_BROADCAST
-}
-
-model Channel {
-  id             Int          @id @default(autoincrement())
-  type           ChannelType
-  name           String
-  telegramChatId String?
-  whatsappId     String?
-  active         Boolean      @default(true)
-  notifications  Notification[]
-  createdAt      DateTime     @default(now())
-}
-
-enum NotificationStatus {
-  PENDING
-  SENT
-  FAILED
-}
-
-model ScrapingSource {
-  id            Int       @id @default(autoincrement())
-  name          String
-  url           String    @unique
-  storeId       Int?
-  store         Store?    @relation(fields: [storeId], references: [id])
-  lastExecution DateTime?
-  active        Boolean   @default(true)
+  @@index([productId, platform, sentAt])
+  @@map("sent_offers")
 }

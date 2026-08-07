@@ -1,25 +1,21 @@
-import express, {
-  type NextFunction,
-  type Request,
-  type Response,
-} from "express";
-import cors from "cors";
-import { routes } from "./routes/main.js";
+import { prisma } from "./lib/prisma.js";
+import { startScheduler } from "./scheduler/cron.js";
 
-const server = express();
+async function bootstrap() {
+  try {
+    await prisma.$connect();
 
-server.use(cors());
-server.use(express.static("public"));
-server.use(express.json());
+    console.log("✅ Connected to database");
 
-server.use("/api", routes);
+    startScheduler();
 
-server.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-  console.error(err);
-  return res.status(500).json({ message: "Internal Server Error" });
-});
+    console.log("⏰ Scheduler started");
+  } catch (error) {
+    console.error("❌ Error starting application", error);
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+    await prisma.$disconnect();
+    process.exit(1);
+  }
+}
+
+bootstrap();
